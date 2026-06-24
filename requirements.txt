@@ -1,0 +1,4 @@
+numpy>=1.22
+matplotlib>=3.5
+# scipy is only required for the flowtype=3 meridional flow profile (erf-based).
+scipy>=1.8

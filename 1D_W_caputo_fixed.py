@@ -30,6 +30,7 @@ Units here are SI-like:
 
 from __future__ import annotations
 import math
+import argparse
 import numpy as np
 
 # NumPy 1.x/2.x compatibility: np.trapz was renamed to np.trapezoid
@@ -548,54 +549,85 @@ def plot_butterfly(theta: np.ndarray, t: np.ndarray, B_store: np.ndarray, outfil
 # -----------------------------------------------------------------------------
 # Main example
 # -----------------------------------------------------------------------------
-if __name__ == "__main__":
-    # Start close to the classical case first. Then reduce q gradually.
-    q = 0.99
-    n_theta = 181
+def _build_arg_parser() -> argparse.ArgumentParser:
+    """CLI for the example run. Defaults reproduce the original script exactly."""
+    p = argparse.ArgumentParser(
+        description="Time-fractional (Caputo) 1D axisymmetric SFT in W-form.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    # Start close to the classical case first (q=0.99). Then reduce q gradually.
+    p.add_argument("--q", type=float, default=0.99,
+                   help="Caputo fractional order in (0, 1]; q=1 is classical SFT.")
+    p.add_argument("--n-theta", type=int, default=181,
+                   help="Number of colatitude grid points (>=5).")
+    p.add_argument("--dt-days", type=float, default=0.5, help="Time step in days.")
+    p.add_argument("--years", type=float, default=33.0,
+                   help="Total simulated time in years.")
+    p.add_argument("--R", type=float, default=6.96e8, help="Solar radius [m].")
+    p.add_argument("--eta", type=float, default=600e3,
+                   help="Supergranular diffusivity [m^2/s].")
+    p.add_argument("--u0", type=float, default=10.0,
+                   help="Peak meridional flow speed [m/s].")
+    p.add_argument("--tau-years", type=float, default=10.0,
+                   help="Radial-decay timescale in years; <=0 disables decay.")
+    p.add_argument("--source-strength", type=float, default=0.02,
+                   help="Source amplitude scaling.")
+    p.add_argument("--flowtype", type=int, default=2, choices=[1, 2, 3, 4, 5],
+                   help="Meridional flow profile selector.")
+    p.add_argument("--cycle-years", type=float, default=6.0,
+                   help="Activity cycle period in years.")
+    # For q<1, this truncates the Caputo memory. Omit for full memory.
+    p.add_argument("--short-memory", type=int, default=None,
+                   help="Truncate Caputo memory to this many steps (default: full).")
+    p.add_argument("--store-every", type=int, default=5,
+                   help="Store output every N steps.")
+    p.add_argument("--advection-scheme", default="vanleer",
+                   choices=["vanleer", "upwind"], help="Advection scheme.")
+    p.add_argument("--seed", type=int, default=1, help="RNG seed for the source.")
+    p.add_argument("--out", default="butterfly_W_caputo.png",
+                   help="Output butterfly figure path.")
+    return p
 
-    dt = 0.5 * 24.0 * 3600.0  # half a day, in seconds
-    years = 33.0
-    n_steps = int(years * 365.25 * 86400.0 / dt)
 
-    R = 6.96e8
-    eta = 600e3
-    u0 = 10.0
-    tau = 10.0 * 365.25 * 24.0 * 3600.0
-    source_strength = 0.02
-    flowtype = 2
+def main(argv: list[str] | None = None) -> None:
+    args = _build_arg_parser().parse_args(argv)
 
-    # For q<1, this truncates the Caputo memory. Use None for full memory.
-    short_memory_M = None
-    store_every = 5
+    dt = args.dt_days * 86400.0
+    n_steps = int(args.years * 365.25 * 86400.0 / dt)
+    tau = args.tau_years * 365.25 * 86400.0 if args.tau_years > 0.0 else None
 
-    theta0 = np.linspace(0.0, np.pi, n_theta)
-    latitude_for_source = 90.0 - np.rad2deg(theta0)
+    theta0 = np.linspace(0.0, np.pi, args.n_theta)
     source_model = TranspSource1D(
-        latitude_deg=latitude_for_source,
-        cycleper_days=6.0 * 365.25,
-        flowtype=flowtype,
+        latitude_deg=90.0 - np.rad2deg(theta0),
+        cycleper_days=args.cycle_years * 365.25,
+        flowtype=args.flowtype,
         tau_seconds=tau,
         blat=0.0,
         bjoy=0.0,
-        seed=1,
-        source_strength=0.02,
+        seed=args.seed,
+        source_strength=args.source_strength,
     )
 
     theta, t_store, B_store = run_fractional_sft_1d_W(
-        q=q,
-        n_theta=n_theta,
+        q=args.q,
+        n_theta=args.n_theta,
         dt=dt,
         n_steps=n_steps,
-        R=R,
-        eta=eta,
-        u0=u0,
+        R=args.R,
+        eta=args.eta,
+        u0=args.u0,
         tau=tau,
-        short_memory_M=short_memory_M,
+        short_memory_M=args.short_memory,
         source_model=source_model,
-        store_every=store_every,
-        flowtype=flowtype,
+        store_every=args.store_every,
+        flowtype=args.flowtype,
         fractional_time_scale=86400.0,
+        advection_scheme=args.advection_scheme,
     )
 
-    plot_butterfly(theta, t_store, B_store, outfile="butterfly_W_caputo.png")
-    print("Saved butterfly diagram to butterfly_W_caputo.png")
+    plot_butterfly(theta, t_store, B_store, outfile=args.out)
+    print(f"Saved butterfly diagram to {args.out}")
+
+
+if __name__ == "__main__":
+    main()
