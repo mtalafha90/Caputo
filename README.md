@@ -113,6 +113,7 @@ theta, t, B = sft.run_fractional_sft_1d_W(q=0.8, n_theta=181, dt=86400.0,
 | `u0`              | `--u0`               | 10 m/s | peak meridional flow speed |
 | `τ`               | `--tau-years`        | 10     | radial-decay timescale (`≤0` disables) |
 | source amplitude  | `--source-strength`  | 0.02   | emergence-source scaling |
+| amplitude scatter | `--amp-sigma`        | 0.13   | log₁₀ std of per-cycle random amplitude (0 = identical cycles) |
 | flow profile      | `--flowtype`         | 2      | meridional flow selector (1–5) |
 | cycle period      | `--cycle-years`      | 11     | activity cycle length (matches Hathaway envelope) |
 | memory truncation | `--short-memory`     | none   | L1 short-memory length (steps) |

@@ -141,6 +141,7 @@ class TranspSource1D:
         bjoy: float = 0.0,
         seed: int = 1,
         source_strength: float = 1.0,
+        amp_sigma: float = 0.13,
     ):
         self.latitude = np.array(latitude_deg, dtype=float)
         self.cycleper_days = float(cycleper_days)
@@ -149,6 +150,10 @@ class TranspSource1D:
         self.blat = float(blat)
         self.bjoy = float(bjoy)
         self.source_strength = float(source_strength)
+        # Std (in log10) of the per-cycle random amplitude scatter: each cycle's
+        # scale is multiplied by 10**N(0, amp_sigma). 0.0 -> every cycle has the
+        # same amplitude (only the polarity flips); larger -> more scatter.
+        self.amp_sigma = float(amp_sigma)
         self.rng = np.random.default_rng(seed)
 
         self.ahat = 0.00185
@@ -161,8 +166,7 @@ class TranspSource1D:
 
     def _new_cycle_sourcescale(self) -> None:
         self.sourcescale1 = 0.0015 * np.exp(7.0 / self.tau_days * 365.25)
-        sigma = 0.13
-        gaussian = self.rng.normal(0.0, sigma)
+        gaussian = self.rng.normal(0.0, self.amp_sigma)
         self.sourcescale = self.sourcescale1 * 10.0**gaussian
 
     def __call__(self, t_seconds: float) -> np.ndarray:
@@ -573,6 +577,10 @@ def _build_arg_parser() -> argparse.ArgumentParser:
                    help="Radial-decay timescale in years; <=0 disables decay.")
     p.add_argument("--source-strength", type=float, default=0.02,
                    help="Source amplitude scaling.")
+    p.add_argument("--amp-sigma", type=float, default=0.13,
+                   help="Std (log10) of the per-cycle random amplitude scatter "
+                        "(0 = identical cycles, only polarity flips; 0.13 ~ 35%%, "
+                        "0.3 ~ factor 2-3).")
     p.add_argument("--flowtype", type=int, default=2, choices=[1, 2, 3, 4, 5],
                    help="Meridional flow profile selector.")
     p.add_argument("--cycle-years", type=float, default=11.0,
@@ -608,6 +616,7 @@ def main(argv: list[str] | None = None) -> None:
         bjoy=0.0,
         seed=args.seed,
         source_strength=args.source_strength,
+        amp_sigma=args.amp_sigma,
     )
 
     theta, t_store, B_store = run_fractional_sft_1d_W(
