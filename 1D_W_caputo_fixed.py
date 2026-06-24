@@ -134,7 +134,7 @@ class TranspSource1D:
         self,
         latitude_deg: np.ndarray,
         *,
-        cycleper_days: float = 6.0 * 365.25,
+        cycleper_days: float = 11.0 * 365.25,
         flowtype: int = 2,
         tau_seconds: float | None = None,
         blat: float = 0.0,
@@ -575,8 +575,9 @@ def _build_arg_parser() -> argparse.ArgumentParser:
                    help="Source amplitude scaling.")
     p.add_argument("--flowtype", type=int, default=2, choices=[1, 2, 3, 4, 5],
                    help="Meridional flow profile selector.")
-    p.add_argument("--cycle-years", type=float, default=6.0,
-                   help="Activity cycle period in years.")
+    p.add_argument("--cycle-years", type=float, default=11.0,
+                   help="Activity cycle period in years (matches the Hathaway "
+                        "envelope, which is tuned for ~11 yr).")
     # For q<1, this truncates the Caputo memory. Omit for full memory.
     p.add_argument("--short-memory", type=int, default=None,
                    help="Truncate Caputo memory to this many steps (default: full).")

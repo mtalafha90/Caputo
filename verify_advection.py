@@ -91,7 +91,7 @@ def full_run(n_theta, scheme, eta=600e6, years=18.0):  # eta = 600 km^2/s
     th0 = np.linspace(0.0, np.pi, n_theta)
     src = sft.TranspSource1D(
         latitude_deg=90.0 - np.rad2deg(th0),
-        cycleper_days=6.0 * 365.25, flowtype=2,
+        cycleper_days=11.0 * 365.25, flowtype=2,
         tau_seconds=10.0 * YEAR, blat=0.0, bjoy=0.0,
         seed=1, source_strength=0.02)
     dt = stable_dt(n_theta, eta)
