@@ -22,11 +22,10 @@ Findings encoded below (also printed):
     and poles where those metrics are decided;
   - field morphology (surge widths/shapes) is where the scheme matters:
     upwind@181 carries ~30% field-level error, vanleer@361 ~7%;
-  - peak/end dipole is insensitive to eta in this configuration (300-900
-    km2/s changes it <0.5% on all schemes/grids): the source bands overlap
-    the equator (fwhm up to ~6 deg, lambda0 down to ~8 deg), so
-    cross-equator cancellation is set by source geometry, not by eta.
-    This is a model property to be aware of, not a numerical artifact.
+  - the diffusivity is the physical eta = 600 km2/s (6e8 m2/s); an earlier
+    1000x-too-small value (600e3 m2/s = 0.6 km2/s) let the poleward flux
+    pile up into a thin ring near 75 deg instead of diffusing into a smooth
+    polar cap (the "polar field" pile-up artifact).
 """
 import os
 import importlib.util
@@ -80,17 +79,29 @@ def test_A_uniform_advection(n=181, n_steps=1500, dt=43200.0, u=5.0):
 # ----------------------------------------------------------------------
 # Full-model runs for Tests B and C
 # ----------------------------------------------------------------------
-def full_run(n_theta, scheme, eta=600e3, years=18.0):
+def stable_dt(n_theta, eta, safety=0.4, dt_cap=DAY):
+    """Explicit-diffusion CFL: dt < (R*dtheta)^2 / (2*eta) (binds at the
+    equator where sin(theta)=1). With the physical eta this constrains fine
+    grids, so the convergence runs must shrink dt with resolution."""
+    dtheta = np.pi / (n_theta - 1)
+    return min(dt_cap, safety * (R * dtheta) ** 2 / (2.0 * eta))
+
+
+def full_run(n_theta, scheme, eta=600e6, years=18.0):  # eta = 600 km^2/s
     th0 = np.linspace(0.0, np.pi, n_theta)
     src = sft.TranspSource1D(
         latitude_deg=90.0 - np.rad2deg(th0),
-        cycleper_days=6.0 * 365.25, flowtype=2,
+        cycleper_days=11.0 * 365.25, flowtype=2,
         tau_seconds=10.0 * YEAR, blat=0.0, bjoy=0.0,
         seed=1, source_strength=0.02)
+    dt = stable_dt(n_theta, eta)
+    # Store on a fixed ~4-day cadence so runs with different dt remain
+    # comparable; the field error below resamples onto the reference times.
+    store_every = max(1, int(round(4.0 * DAY / dt)))
     return sft.run_fractional_sft_1d_W(
-        q=1.0, n_theta=n_theta, dt=DAY, n_steps=int(years * YEAR / DAY),
+        q=1.0, n_theta=n_theta, dt=dt, n_steps=int(years * YEAR / dt),
         R=R, eta=eta, u0=10.0, tau=10.0 * YEAR, short_memory_M=None,
-        source_model=src, store_every=4, flowtype=2,
+        source_model=src, store_every=store_every, flowtype=2,
         advection_scheme=scheme)
 
 
@@ -105,13 +116,20 @@ def tests_BC_convergence(cases, years=18.0):
     thR, tR, BR = runs["vanleer 721"]
     DR = np.array([sft.axial_dipole_moment(thR, b) for b in BR])
 
+    def resample(th, t, Bs):
+        """Interpolate a run's butterfly onto the reference (tR, thR) grid,
+        in space then time, so runs with different dt/snapshot times compare."""
+        Bsp = np.array([np.interp(thR, th, b) for b in Bs])      # (nt, nthR)
+        return np.array([np.interp(tR, t, Bsp[:, j])
+                         for j in range(thR.size)]).T            # (ntR, nthR)
+
     dip_err, fld_err, dipoles = {}, {}, {}
     for label in cases:
         th, t, Bs = runs[label]
         D = np.array([sft.axial_dipole_moment(th, b) for b in Bs])
         dipoles[label] = (t / YEAR, D)
-        Bi = np.array([np.interp(thR, th, b) for b in Bs])
-        fld_err[label] = np.linalg.norm(Bi - BR) / np.linalg.norm(BR)
+        Bg = resample(th, t, Bs)
+        fld_err[label] = np.linalg.norm(Bg - BR) / np.linalg.norm(BR)
         dip_err[label] = np.max(np.abs(np.interp(tR, t, D) - DR)) / np.max(np.abs(DR))
 
     print("\nerrors vs vanleer@721 reference:")

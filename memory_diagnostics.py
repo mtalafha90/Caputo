@@ -31,7 +31,7 @@ spec.loader.exec_module(sft)
 _trapz = getattr(np, "trapezoid", getattr(np, "trapz", None))
 
 R = 6.96e8
-ETA = 600e3
+ETA = 600e6  # supergranular diffusivity [m^2/s] = 600 km^2/s
 U0 = 10.0
 FLOWTYPE = 2
 T0 = 86400.0
