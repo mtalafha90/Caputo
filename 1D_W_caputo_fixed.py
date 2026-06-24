@@ -309,7 +309,8 @@ def w_transport_rhs(
 
     if advection_scheme == "upwind":
         # First-order upwind. Stable but carries numerical diffusion
-        # ~ |u| R dtheta / 2, which exceeds eta by ~100x at 1 deg resolution.
+        # ~ |u| R dtheta / 2 ~ 6e7 m^2/s at 1 deg resolution, ~10% of the
+        # physical eta = 6e8; van Leer below keeps the correction O(dtheta^2).
         W_up = np.where(u_face >= 0.0, W_right, W_left)
 
     elif advection_scheme == "vanleer":
@@ -564,8 +565,8 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--years", type=float, default=33.0,
                    help="Total simulated time in years.")
     p.add_argument("--R", type=float, default=6.96e8, help="Solar radius [m].")
-    p.add_argument("--eta", type=float, default=600e3,
-                   help="Supergranular diffusivity [m^2/s].")
+    p.add_argument("--eta", type=float, default=600e6,
+                   help="Supergranular diffusivity [m^2/s] (600 km^2/s = 6.0e8).")
     p.add_argument("--u0", type=float, default=10.0,
                    help="Peak meridional flow speed [m/s].")
     p.add_argument("--tau-years", type=float, default=10.0,
