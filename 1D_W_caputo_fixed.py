@@ -292,7 +292,6 @@ def w_transport_rhs(
     Boundary fluxes at the poles are set to zero.
     """
 
-    n = theta.size
     B = recover_B_from_W(W, theta, R)
 
     # --------------------------------------------------
@@ -431,7 +430,6 @@ def run_fractional_sft_1d_W(
 
     theta = np.linspace(0.0, np.pi, n_theta)
     dtheta = theta[1] - theta[0]
-    latitude = 90.0 - np.rad2deg(theta)
     sin_theta = np.sin(theta)
 
     u_theta = meridional_flow_profile(
